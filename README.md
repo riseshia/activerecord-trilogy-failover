@@ -22,7 +22,7 @@ This is the correct behavior — writes should not be silently retried.
 Add to your Gemfile:
 
 ```ruby
-gem "activerecord-trilogy-failover", github: "five-n05/activerecord-trilogy-failover"
+gem "activerecord-trilogy-failover", github: "riseshia/activerecord-trilogy-failover"
 ```
 
 ## Usage
@@ -61,6 +61,19 @@ production:
 ```bash
 bundle install
 bundle exec rspec
+```
+
+### Integration test
+
+The `example/` directory contains a Rails app with Docker-based MySQL that verifies real read-only switchover scenarios. See [example/README.md](example/README.md) for details.
+
+```bash
+cd example
+docker compose up -d
+bundle install
+bundle exec ruby bin/setup
+bundle exec ruby bin/demo
+docker compose down -v          # cleanup
 ```
 
 ## License

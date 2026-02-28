@@ -15,7 +15,7 @@ Gem::Specification.new do |spec|
     to transparently reconnect. Useful for Aurora failover, ProxySQL, RDS Multi-AZ,
     or any MySQL read-only switchover scenario.
   DESC
-  spec.homepage = "https://github.com/five-n05/activerecord-trilogy-failover"
+  spec.homepage = "https://github.com/riseshia/activerecord-trilogy-failover"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.2.0"
 
