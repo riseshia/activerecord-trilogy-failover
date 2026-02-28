@@ -69,30 +69,38 @@ end
 
 puts
 puts "-" * 60
-puts "Scenario 2: Auto-recovery via Rails retry"
+puts "Scenario 2: Connection discarded after failure, fresh connection on next query"
 puts "-" * 60
 puts
+
+# Record connection ID before failure
+conn_id_before = ActiveRecord::Base.lease_connection.raw_connection.query("SELECT CONNECTION_ID() AS id").first
+puts "[INFO] Connection ID before failure: #{conn_id_before}"
 
 admin.query("SET GLOBAL read_only = 1")
 puts "[INFO] SET GLOBAL read_only = 1"
 
-# Background thread restores read_only after 2 seconds (simulates DNS failover)
-recovery_thread = Thread.new do
-  sleep 2
-  admin.query("SET GLOBAL read_only = 0")
-  puts "[INFO] Background: SET GLOBAL read_only = 0 (simulating failover complete)"
-end
-
 begin
-  post = Post.create!(title: "Written after automatic retry!")
-  puts "[OK] INSERT succeeded after automatic retry: #{post.title}"
+  Post.create!(title: "This should fail")
+  puts "[UNEXPECTED] INSERT succeeded under read_only"
 rescue ActiveRecord::ConnectionFailed => e
-  puts "[INFO] ConnectionFailed raised (retries exhausted before recovery)"
-  puts "       This is expected if retry_deadline is shorter than recovery time."
-  admin.query("SET GLOBAL read_only = 0") rescue nil
+  puts "[OK] INSERT raised ConnectionFailed (connection should be discarded)"
 end
 
-recovery_thread.join
+admin.query("SET GLOBAL read_only = 0")
+puts "[INFO] SET GLOBAL read_only = 0 (simulating failover complete)"
+
+# Next query should succeed on a fresh connection
+post = Post.create!(title: "Written on fresh connection!")
+conn_id_after = ActiveRecord::Base.lease_connection.raw_connection.query("SELECT CONNECTION_ID() AS id").first
+puts "[OK] Next INSERT succeeded: #{post.title}"
+puts "[INFO] Connection ID after recovery: #{conn_id_after}"
+
+if conn_id_before != conn_id_after
+  puts "[OK] Connection was discarded and replaced (#{conn_id_before} → #{conn_id_after})"
+else
+  puts "[WARN] Same connection ID — connection may not have been discarded"
+end
 
 # 5. Cleanup
 admin.close
