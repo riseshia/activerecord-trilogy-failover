@@ -55,6 +55,7 @@ production:
 - Ruby >= 3.2
 - ActiveRecord >= 7.1
 - Trilogy >= 2.0
+- MySQL 8.0 (other versions are not tested)
 
 ## Development
 
