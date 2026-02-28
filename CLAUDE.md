@@ -22,10 +22,9 @@ bundle exec rspec spec/adapter_patch_spec.rb
 bundle exec rspec spec/adapter_patch_spec.rb -e "returns ActiveRecord::ConnectionFailed"
 
 # Integration test (requires Docker)
-cd example && docker compose up -d
-bundle exec ruby bin/setup    # Run migrations with admin user
-bundle exec ruby bin/demo     # Run integration demo
-docker compose down -v        # Cleanup
+docker compose up -d                              # Start MySQL on port 3307
+MYSQL_PORT=3307 bundle exec rspec spec/integration/
+docker compose down -v                            # Cleanup
 ```
 
 ## Architecture
@@ -44,4 +43,4 @@ The gem has three components:
 
 ## Test Structure
 
-Unit tests in `spec/` use mocked TrilogyAdapter (no real DB needed). The `example/` directory contains a complete Rails 8.1 app with Docker-based MySQL for integration testing.
+Unit tests in `spec/adapter_patch_spec.rb` use mocked TrilogyAdapter (no real DB needed). Integration tests in `spec/integration/` run against a real MySQL instance (Docker or CI service container). Integration tests are automatically skipped when MySQL is unavailable.

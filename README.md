@@ -65,14 +65,11 @@ bundle exec rspec
 
 ### Integration test
 
-The `example/` directory contains a Rails app with Docker-based MySQL that verifies real read-only switchover scenarios. See [example/README.md](example/README.md) for details.
+Integration tests run against a real MySQL instance using Docker:
 
 ```bash
-cd example
-docker compose up -d
-bundle install
-bundle exec ruby bin/setup
-bundle exec ruby bin/demo
+docker compose up -d            # start MySQL on port 3307
+MYSQL_PORT=3307 bundle exec rspec spec/integration/
 docker compose down -v          # cleanup
 ```
 

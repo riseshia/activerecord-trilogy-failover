@@ -10,6 +10,20 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: failover_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+
     strategy:
       fail-fast: false
       matrix:
@@ -28,7 +42,18 @@ jobs:
         env:
           BUNDLE_GEMFILE: gemfiles/rails_${{ matrix.rails }}.gemfile
 
+      - name: Create MySQL users
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -u root -proot failover_test <<'SQL'
+            CREATE USER 'admin'@'%' IDENTIFIED BY 'admin';
+            GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%' WITH GRANT OPTION;
+            CREATE USER 'app'@'%' IDENTIFIED BY 'app';
+            GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, INDEX ON failover_test.* TO 'app'@'%';
+            FLUSH PRIVILEGES;
+          SQL
+
       - name: Run tests
         run: bundle exec rspec
         env:
           BUNDLE_GEMFILE: gemfiles/rails_${{ matrix.rails }}.gemfile
+          MYSQL_PORT: "3306"
