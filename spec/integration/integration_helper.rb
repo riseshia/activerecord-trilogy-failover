@@ -46,14 +46,30 @@ if MYSQL_AVAILABLE
   class Post < ActiveRecord::Base; end
 end
 
-def admin_connection
-  Trilogy.new(
+def with_admin_connection
+  conn = Trilogy.new(
     host: "127.0.0.1",
     port: MYSQL_PORT,
     username: "admin",
     password: "admin",
     database: "failover_test"
   )
+  yield conn
+ensure
+  conn&.close
+end
+
+def set_read_only!
+  with_admin_connection { |c| c.query("SET GLOBAL read_only = 1") }
+end
+
+def fetch_connection_id
+  ActiveRecord::Base.lease_connection
+    .raw_connection.query("SELECT CONNECTION_ID() AS id").first
+end
+
+def unset_read_only!
+  with_admin_connection { |c| c.query("SET GLOBAL read_only = 0") }
 end
 
 RSpec.configure do |config|
@@ -62,8 +78,6 @@ RSpec.configure do |config|
   end
 
   config.after(:each, :integration) do
-    admin = admin_connection
-    admin.query("SET GLOBAL read_only = 0")
-    admin.close
+    unset_read_only!
   end
 end
