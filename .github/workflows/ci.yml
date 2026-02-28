@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ["4.0"]
+        rails: ["71", "72", "80", "81"]
+
+    name: Ruby ${{ matrix.ruby }} / Rails ${{ matrix.rails }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+        env:
+          BUNDLE_GEMFILE: gemfiles/rails_${{ matrix.rails }}.gemfile
+
+      - name: Run tests
+        run: bundle exec rspec
+        env:
+          BUNDLE_GEMFILE: gemfiles/rails_${{ matrix.rails }}.gemfile
