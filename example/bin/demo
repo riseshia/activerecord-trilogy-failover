@@ -1,0 +1,104 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+ENV["RAILS_ENV"] ||= "development"
+
+require_relative "../config/application"
+Rails.application.initialize!
+require_relative "../app/models/application_record"
+require_relative "../app/models/post"
+
+puts "=" * 60
+puts "activerecord-trilogy-failover Demo"
+puts "=" * 60
+puts
+
+# 1. Verify the patch is loaded via Railtie
+adapter_class = ActiveRecord::ConnectionAdapters::TrilogyAdapter
+if adapter_class.ancestors.include?(ActiveRecordTrilogyFailover::AdapterPatch)
+  puts "[OK] AdapterPatch is loaded via Railtie"
+else
+  puts "[FAIL] AdapterPatch not found in TrilogyAdapter ancestors"
+  exit 1
+end
+
+# 2. Connect as app user (no SUPER privilege)
+ActiveRecord::Base.establish_connection(:development)
+
+# 3. Normal operations
+Post.delete_all
+Post.create!(title: "Hello from failover example")
+puts "[OK] INSERT succeeded (read_only = OFF)"
+
+post = Post.first
+puts "[OK] SELECT succeeded: #{post.title}"
+
+# 4. Open admin connection for toggling read_only
+admin = Trilogy.new(
+  host: "127.0.0.1",
+  port: 3307,
+  username: "admin",
+  password: "admin",
+  database: "failover_example"
+)
+
+puts
+puts "-" * 60
+puts "Scenario 1: Error detection (read_only → ConnectionFailed)"
+puts "-" * 60
+puts
+
+admin.query("SET GLOBAL read_only = 1")
+puts "[INFO] SET GLOBAL read_only = 1"
+
+# SELECT still works
+post = Post.first
+puts "[OK] SELECT still works under read_only"
+
+# INSERT → ConnectionFailed
+begin
+  Post.create!(title: "This should fail")
+  puts "[UNEXPECTED] INSERT succeeded under read_only"
+rescue ActiveRecord::ConnectionFailed => e
+  puts "[OK] INSERT raised ActiveRecord::ConnectionFailed"
+  puts "     #{e.message.lines.first.strip}"
+ensure
+  admin.query("SET GLOBAL read_only = 0")
+  puts "[INFO] SET GLOBAL read_only = 0 (restored)"
+end
+
+puts
+puts "-" * 60
+puts "Scenario 2: Auto-recovery via Rails retry"
+puts "-" * 60
+puts
+
+admin.query("SET GLOBAL read_only = 1")
+puts "[INFO] SET GLOBAL read_only = 1"
+
+# Background thread restores read_only after 2 seconds (simulates DNS failover)
+recovery_thread = Thread.new do
+  sleep 2
+  admin.query("SET GLOBAL read_only = 0")
+  puts "[INFO] Background: SET GLOBAL read_only = 0 (simulating failover complete)"
+end
+
+begin
+  post = Post.create!(title: "Written after automatic retry!")
+  puts "[OK] INSERT succeeded after automatic retry: #{post.title}"
+rescue ActiveRecord::ConnectionFailed => e
+  puts "[INFO] ConnectionFailed raised (retries exhausted before recovery)"
+  puts "       This is expected if retry_deadline is shorter than recovery time."
+  admin.query("SET GLOBAL read_only = 0") rescue nil
+end
+
+recovery_thread.join
+
+# 5. Cleanup
+admin.close
+Post.delete_all
+
+puts
+puts "=" * 60
+puts "Demo complete!"
+puts "=" * 60
