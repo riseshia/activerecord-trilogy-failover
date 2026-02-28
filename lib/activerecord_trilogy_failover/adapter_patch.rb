@@ -20,7 +20,8 @@ module ActiveRecordTrilogyFailover
 
     def read_only_error?(exception)
       exception.respond_to?(:error_code) &&
-        exception.error_code == MYSQL_READ_ONLY_ERROR_CODE
+        exception.error_code == MYSQL_READ_ONLY_ERROR_CODE &&
+        exception.message.include?("--read-only")
     end
   end
 end

@@ -66,6 +66,22 @@ RSpec.describe ActiveRecordTrilogyFailover::AdapterPatch do
       end
     end
 
+    context "when MySQL returns 1290 for --secure-file-priv" do
+      let(:error) do
+        mysql_error(1290, "The MySQL server is running with the --secure-file-priv option")
+      end
+
+      it "delegates to the original translate_exception" do
+        result = adapter.send(
+          :translate_exception, error,
+          message: error.message, sql: "LOAD DATA INFILE '/tmp/data.csv'", binds: []
+        )
+
+        expect(result).to be_a(ActiveRecord::StatementInvalid)
+        expect(result).not_to be_a(ActiveRecord::ConnectionFailed)
+      end
+    end
+
     context "when MySQL returns a different error code" do
       it "delegates to the original translate_exception" do
         error = mysql_error(1045, "Access denied for user 'root'@'localhost'")
