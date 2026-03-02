@@ -39,17 +39,6 @@ ActiveRecord::ConnectionAdapters::TrilogyAdapter.prepend(
 )
 ```
 
-### database.yml tuning
-
-Rails' built-in retry settings work with this gem:
-
-```yaml
-production:
-  adapter: trilogy
-  connection_retries: 2    # default: 1
-  retry_deadline: 5        # seconds, default: none
-```
-
 ## Compatibility
 
 - Ruby >= 3.2
