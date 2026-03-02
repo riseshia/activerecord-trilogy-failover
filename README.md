@@ -22,7 +22,7 @@ This is the correct behavior — writes should not be silently retried.
 Add to your Gemfile:
 
 ```ruby
-gem "activerecord-trilogy-failover", github: "riseshia/activerecord-trilogy-failover"
+gem "activerecord-trilogy-failover"
 ```
 
 ## Usage
