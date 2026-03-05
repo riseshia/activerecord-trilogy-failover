@@ -23,17 +23,21 @@ RSpec.describe "Failover integration", skip: (!MYSQL_AVAILABLE && "MySQL not ava
 
     set_read_only!
 
+    # SELECT succeeds even on a read-only server
     expect(Post.first.title).to eq("seed")
 
     expect {
       Post.create!(title: "should fail")
     }.to raise_error(ActiveRecord::ConnectionFailed)
 
+    # raw_connection is closed, so active? returns false
     pool = ActiveRecord::Base.connection_pool
-    expect(pool.connections).to be_empty
+    conn = pool.connections.first
+    expect(conn).not_to be_active
 
     unset_read_only!
 
+    # After unsetting read_only, the next query triggers a reconnect to a fresh connection
     Post.create!(title: "on fresh connection")
 
     conn_id_after = fetch_connection_id

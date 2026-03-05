@@ -65,7 +65,7 @@ end
 
 def fetch_connection_id
   ActiveRecord::Base.lease_connection
-    .raw_connection.query("SELECT CONNECTION_ID() AS id").first
+    .select_value("SELECT CONNECTION_ID()")
 end
 
 def unset_read_only!

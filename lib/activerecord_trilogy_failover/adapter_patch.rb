@@ -10,6 +10,11 @@ module ActiveRecordTrilogyFailover
 
     def translate_exception(exception, message:, sql:, binds:)
       if read_only_error?(exception)
+        # Close the underlying TCP connection to prevent pool reuse.
+        # A read-only server still accepts ROLLBACK, SELECT 1, and ping,
+        # so without closing, the connection passes verify! and stays in the pool.
+        @raw_connection&.close rescue nil
+
         return ActiveRecord::ConnectionFailed.new(
           "#{exception.class}: #{exception.message}",
           connection_pool: @pool
