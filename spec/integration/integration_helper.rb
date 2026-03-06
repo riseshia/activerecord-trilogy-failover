@@ -64,8 +64,12 @@ def set_read_only!
 end
 
 def fetch_connection_id
-  ActiveRecord::Base.lease_connection
-    .select_value("SELECT CONNECTION_ID()")
+  conn = if ActiveRecord::Base.respond_to?(:lease_connection)
+           ActiveRecord::Base.lease_connection
+         else
+           ActiveRecord::Base.connection
+         end
+  conn.select_value("SELECT CONNECTION_ID()")
 end
 
 def unset_read_only!
